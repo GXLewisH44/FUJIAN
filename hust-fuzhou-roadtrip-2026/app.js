@@ -156,14 +156,18 @@ function computeInbound() {
 function renderInbound() {
   const info = computeInbound();
   const missing = info.stops.some(stop => stop.type === '闪充' && values[stop.id] === undefined);
-  const cards = info.stops.map(stop => {
+  const terminalIndex = info.stops.findIndex(stop => stop.type === '住宿');
+  const maxMovableIndex = (terminalIndex === -1 ? info.stops.length : terminalIndex) - 1;
+  const cards = info.stops.map((stop, index) => {
     const editable = stop.type === '闪充';
     const deletable = stop.type !== '住宿';
+    const movable = index <= maxMovableIndex;
     return `<article class="stop ${editable ? 'charger' : 'hotel'}">
       <div class="drive">从上一站开车 · ${duration(Math.round(stop.driveSeconds / 60))} · ${stop.km.toFixed(1)}公里（高德路线）</div>
-      <div class="stop-title"><h3>${safe(stop.name)}</h3><span class="badge">${safe(stop.type)}</span>${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="inbound">删除</button>` : ''}</div>
+      <div class="stop-title"><h3>${safe(stop.name)}</h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="inbound">删除</button>` : ''}</div></div>
       <p class="tip">${safe(stop.hint)}</p>
       ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">在高德核对比亚迪闪充站 ↗</a>` : ''}
+      <div class="route-edit"><label for="drive-inbound-${safe(stop.id)}">从上一站开车</label><input id="drive-inbound-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="inbound" type="number" min="0" max="1440" step="1" value="${Math.round(stop.driveSeconds / 60)}" inputmode="numeric">分钟 <em>换序后请按高德修正</em></div>
       <div class="times"><span>抵达 <strong>${stampRounded(stop.arrival)}</strong></span><span class="depart">${editable ? '离开' : '到店'} <strong>${stampRounded(stop.depart)}</strong></span></div>
       ${editable ? `<div class="play"><label for="play-${stop.id}">闪充 / 休息总时长</label><div class="input-wrap"><input id="play-${stop.id}" data-stop="${stop.id}" type="number" min="0" max="1440" step="5" inputmode="numeric" placeholder="如 30" value="${safe(values[stop.id] ?? '')}" aria-label="${safe(stop.name)}闪充和休息总分钟数">分钟</div></div>` : ''}
     </article>`;
@@ -193,15 +197,19 @@ function render() {
     if (day.date === 3 && info.stops.find(stop => stop.id === 'checkin').arrival >= at(3, '18:00')) notes.push('18:00后才到星程办理入住，八一广场可先删；删站后要用高德当天导航重新算路。');
     if (day.date === 4 && info.end.getDate() > 4) notes.push('预计10月5日才到三江口；可考虑沙县住一晚。');
     else if (day.date === 4 && info.stops.find(stop => stop.id === 'yujiao').depart >= at(4, '16:00')) notes.push('沙县小吃步行圈预计16:00后才结束；留意疲劳和夜间路况。');
-    const cards = info.stops.map(stop => {
+    const terminalIndex = info.stops.findIndex(stop => stop.type === '住宿' || stop.type === '到达');
+    const maxMovableIndex = (terminalIndex === -1 ? info.stops.length : terminalIndex) - 1;
+    const cards = info.stops.map((stop, index) => {
       const editable = stop.type !== '住宿' && stop.type !== '到达' && stop.type !== '入住';
       const deletable = editable;
+      const movable = index <= maxMovableIndex;
       const kind = stop.type === '住宿' || stop.type === '入住' ? 'hotel' : stop.type === '到达' ? 'finish' : '';
       return `<article class="stop ${kind}">
         <div class="drive">${stop.drive === 0 ? safe(stop.transfer || '同在王英码头 · 无公路转场') : `从上一站开车 · ${duration(stop.drive)} · ${stop.km.toFixed(1)}公里（高德）`}</div>
-        <div class="stop-title"><h3>${safe(stop.name)}</h3><span class="badge">${safe(stop.type)}</span>${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="${day.date}">删除</button>` : ''}</div>
+        <div class="stop-title"><h3>${safe(stop.name)}</h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="${day.date}">删除</button>` : ''}</div></div>
         <p class="tip">${safe(stop.hint)}</p>
         ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">查看高德位置 ↗</a>` : ''}
+        <div class="route-edit"><label for="drive-${day.date}-${safe(stop.id)}">从上一站开车</label><input id="drive-${day.date}-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="${day.date}" type="number" min="0" max="1440" step="1" value="${stop.drive}" inputmode="numeric">分钟 <em>换序后请按高德修正</em></div>
         <div class="times"><span>抵达 <strong>${stamp(stop.arrival)}</strong></span><span class="depart">${editable ? '离开' : '时间'} <strong>${stamp(stop.depart)}</strong></span></div>
         ${stop.wait ? `<div class="wait">等到夜景计划时间 · ${duration(stop.wait)}</div>` : ''}
         ${editable ? `<div class="play"><label for="play-${stop.id}">${stop.id === 'pier' ? '坐船往返总时长' : '停留时间'}</label><div class="input-wrap"><input id="play-${stop.id}" data-stop="${stop.id}" type="number" min="0" max="1440" step="5" inputmode="numeric" placeholder="${stop.id === 'pier' ? '如 90' : '0'}" value="${safe(values[stop.id] ?? '')}" aria-label="${safe(stop.name)}${stop.id === 'pier' ? '坐船往返总分钟数' : '停留分钟数'}">分钟</div></div>` : ''}
@@ -236,8 +244,27 @@ function removeStop(dayKey, stopId) {
   saveState(`删除目的地：${stop.name}`);
 }
 
+function moveStop(dayKey, stopId, direction) {
+  const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === String(dayKey));
+  if (!target) return;
+  const index = target.stops.findIndex(item => item.id === stopId);
+  if (index < 0) return;
+  const terminalIndex = target.stops.findIndex(item => item.type === '住宿' || item.type === '到达');
+  const maxMovableIndex = (terminalIndex === -1 ? target.stops.length : terminalIndex) - 1;
+  const nextIndex = index + Number(direction);
+  if (index > maxMovableIndex || nextIndex < 0 || nextIndex > maxMovableIndex) return;
+  const [stop] = target.stops.splice(index, 1);
+  target.stops.splice(nextIndex, 0, stop);
+  render();
+  saveState(`调整顺序：${stop.name}${Number(direction) < 0 ? '上移' : '下移'}`);
+}
+
 document.getElementById('toggle-editor')?.addEventListener('click', () => toggleEditor());
 document.getElementById('cancel-editor')?.addEventListener('click', () => toggleEditor(false));
+document.getElementById('export-pdf')?.addEventListener('click', () => {
+  toggleEditor(false);
+  window.setTimeout(() => window.print(), 50);
+});
 document.getElementById('reset-plan')?.addEventListener('click', () => {
   if (!window.confirm('恢复默认行程？当前新增、删除和停留时间都会清除。')) return;
   tripDays = JSON.parse(JSON.stringify(defaultTripDays));
@@ -277,6 +304,11 @@ document.getElementById('stop-form')?.addEventListener('submit', event => {
 });
 
 document.addEventListener('click', event => {
+  const moveButton = event.target.closest('[data-move-stop]');
+  if (moveButton) {
+    moveStop(moveButton.dataset.day, moveButton.dataset.moveStop, moveButton.dataset.direction);
+    return;
+  }
   const button = event.target.closest('[data-delete-stop]');
   if (button) removeStop(button.dataset.day, button.dataset.deleteStop);
 });
@@ -296,6 +328,20 @@ document.addEventListener('input', event => {
 });
 
 document.addEventListener('change', event => {
+  const driveInput = event.target.closest('input[data-drive-stop]');
+  if (driveInput) {
+    const dayKey = driveInput.dataset.day;
+    const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === String(dayKey));
+    const stop = target?.stops.find(item => item.id === driveInput.dataset.driveStop);
+    if (!stop) return;
+    const drive = minutes(driveInput.value);
+    driveInput.value = String(drive);
+    if (dayKey === 'inbound') stop.driveSeconds = drive * 60;
+    else stop.drive = drive;
+    render();
+    saveState(`更新路段时间：${stop.name} ${drive}分钟`);
+    return;
+  }
   if (event.target?.id !== 'inbound-start') return;
   if (/^\d{2}:\d{2}$/.test(event.target.value)) inboundStart = event.target.value;
   render();
