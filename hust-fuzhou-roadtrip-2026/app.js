@@ -158,9 +158,17 @@ function loadAmapApi() {
     const callbackName = `__roadtripAmapReady_${Date.now()}`;
     const script = document.createElement('script');
     window[callbackName] = () => {
-      window.__roadtripAmapKey = amapKey;
-      delete window[callbackName];
-      resolve(window.AMap);
+      try {
+        window.AMap.plugin(['AMap.Geocoder', 'AMap.Driving'], () => {
+          window.__roadtripAmapKey = amapKey;
+          delete window[callbackName];
+          resolve(window.AMap);
+        });
+      } catch (error) {
+        delete window[callbackName];
+        amapReadyPromise = null;
+        reject(error);
+      }
     };
     script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&callback=${callbackName}`;
     script.async = true;
