@@ -189,14 +189,16 @@ function render() {
     const last = info.stops.at(-1);
     const resultLabel = day.date === 4 ? '预计到三江口' : '预计到酒店';
     const notes = [];
-    if (day.date === 2 && info.stops[1].arrival >= at(2, '15:30')) notes.push('14:00出发按高德最快也约15:44才到王英码头（未算揽胜亭停留）。你发的攻略称去程末班16:00，但不是国庆班次；先看亭再坐往返船很可能赶不上，务必向码头确认更晚班次。');
+    const pierStop = info.stops.find(stop => stop.id === 'pier');
+    if (day.date === 2 && pierStop && pierStop.arrival >= at(2, '15:30')) notes.push('14:00出发按高德最快也约15:44才到王英码头（未算揽胜亭停留）。你发的攻略称去程末班16:00，但不是国庆班次；先看亭再坐往返船很可能赶不上，务必向码头确认更晚班次。');
     if (day.date === 2 && info.end >= at(3, '00:00')) notes.push('10月2日到瑞昌已跨到午夜，请缩短停留或调整计划。');
     else if (day.date === 2 && info.end >= at(2, '21:30')) notes.push('瑞昌预计21:30后才到店，次日09:30出发仍需留足休息。');
     if (day.date === 3 && info.end >= at(4, '00:00')) notes.push('夜景结束返回南昌酒店已跨到10月4日，次日仍按07:30出发。');
     else if (day.date === 3 && info.end >= at(3, '22:30')) notes.push('夜景结束预计22:30后才回酒店，建议压缩夜景停留。');
-    if (day.date === 3 && info.stops.find(stop => stop.id === 'checkin').arrival >= at(3, '18:00')) notes.push('18:00后才到星程办理入住，八一广场可先删；删站后要用高德当天导航重新算路。');
+    const checkinStop = info.stops.find(stop => stop.id === 'checkin');
+    if (day.date === 3 && checkinStop && checkinStop.arrival >= at(3, '18:00')) notes.push('18:00后才到星程办理入住，八一广场可先删；删站后要用高德当天导航重新算路。');
     if (day.date === 4 && info.end.getDate() > 4) notes.push('预计10月5日才到三江口；可考虑沙县住一晚。');
-    else if (day.date === 4 && info.stops.find(stop => stop.id === 'yujiao').depart >= at(4, '16:00')) notes.push('沙县小吃步行圈预计16:00后才结束；留意疲劳和夜间路况。');
+    else if (day.date === 4 && info.stops.find(stop => stop.id === 'yujiao')?.depart >= at(4, '16:00')) notes.push('沙县小吃步行圈预计16:00后才结束；留意疲劳和夜间路况。');
     const terminalIndex = info.stops.findIndex(stop => stop.type === '住宿' || stop.type === '到达');
     const maxMovableIndex = (terminalIndex === -1 ? info.stops.length : terminalIndex) - 1;
     const cards = info.stops.map((stop, index) => {
