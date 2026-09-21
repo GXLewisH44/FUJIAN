@@ -341,6 +341,8 @@ function renderInbound() {
 
 function render() {
   syncAmapSettingsUI();
+  const scheduleSummary = document.getElementById('schedule-summary');
+  if (scheduleSummary) scheduleSummary.textContent = `出发：10/2 ${tripDays.find(day => day.date === 2)?.start || '--:--'} · 10/3 ${tripDays.find(day => day.date === 3)?.start || '--:--'} · 10/4 ${tripDays.find(day => day.date === 4)?.start || '--:--'}`;
   renderInbound();
   const target = document.getElementById('days');
   target.innerHTML = tripDays.map(day => {
@@ -377,7 +379,7 @@ function render() {
       </article>`;
     }).join('');
     return `<section class="day" aria-label="10月${day.date}日行程">
-      <div class="day-head"><div class="day-meta">10月${day.date}日 · ${day.start}从${safe(day.origin)}出发</div><h2>${safe(day.title)}</h2><p>${safe(day.subtitle)}</p>
+      <div class="day-head"><div class="day-meta">10月${day.date}日 · ${day.start}从${safe(day.origin)}出发</div><h2>${safe(day.title)}</h2><p>${safe(day.subtitle)}</p><div class="start-picker"><label for="day-start-${day.date}">当天出发时间</label><input id="day-start-${day.date}" data-day-start="${day.date}" type="time" value="${safe(day.start)}" step="300" aria-label="10月${day.date}日出发时间"><small>修改后会自动重算本日及后续到达时间</small></div>
       <div class="day-result"><div><small>${resultLabel}</small><br><strong>${stamp(last.arrival)}</strong></div><div class="result-right"><small>驾驶 ${duration(info.driving)}</small><br><small>停留 ${duration(info.playing)}</small></div></div></div>
       <div class="stops">${cards}</div>
       <div class="day-foot"><p>高德规划驾驶合计 ${duration(info.driving)} · 已填停留 ${duration(info.playing)}${info.waiting ? ` · 自动等待 ${duration(info.waiting)}` : ''}</p>${notes.length ? notes.map(note => `<p class="warn">${safe(note)}</p>`).join('') : '<p>路段时间固定；填写停留分钟后，后续时间会更新。</p>'}</div>
@@ -509,6 +511,15 @@ document.addEventListener('keydown', event => {
 });
 
 document.addEventListener('change', event => {
+  const dayStartInput = event.target.closest('input[data-day-start]');
+  if (dayStartInput) {
+    const day = tripDays.find(item => String(item.date) === String(dayStartInput.dataset.dayStart));
+    if (!day || !/^\d{2}:\d{2}$/.test(dayStartInput.value)) return;
+    day.start = dayStartInput.value;
+    render();
+    saveState(`调整10月${day.date}日出发时间：${day.start}`);
+    return;
+  }
   const nameInput = event.target.closest('input[data-name-stop]');
   if (nameInput) {
     const dayKey = nameInput.dataset.day;
