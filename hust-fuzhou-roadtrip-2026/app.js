@@ -170,7 +170,7 @@ function loadAmapApi() {
         reject(error);
       }
     };
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&callback=${callbackName}`;
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&plugin=AMap.Geocoder,AMap.Driving&callback=${callbackName}`;
     script.async = true;
     script.onerror = () => {
       delete window[callbackName];
