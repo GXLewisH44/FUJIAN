@@ -1,15 +1,15 @@
 const defaultTripDays = [
   {
-    date: 2, start: '14:00', origin: '全季武汉光谷湖北经济学院酒店', title: '武汉 → 仙岛湖 → 瑞昌', subtitle: '14:00从已订全季出发 · 揽胜亭后坐公交船 · 已订瑞昌汉庭',
+    date: 2, start: '14:00', origin: '全季武汉光谷湖北经济学院酒店', title: '武汉 → 仙岛湖 → 瑞昌', subtitle: '14:00从已订全季出发 · 揽胜亭后坐公交船 · 已订九江快乐城美仑酒店',
     stops: [
       { id: 'lake', name: '仙岛湖 · 揽胜亭', drive: 98, km: 118.0, type: '景点', hint: '导航点为高德“揽胜亭”；停车、步行上亭及看全景的时间请填在这里。' },
       { id: 'pier', name: '王英客运码头 · 公交船往返', drive: 6, km: 2.6, type: '公交船', hint: '驾车导航点为高德“王英码头”，不在岛上游玩。你发的攻略称单程约30—40分钟；请把等船、上下船和往返航行总时间填在这里。国庆船班须码头确认。' },
       { id: 'wanging', name: '王英镇 · 晚餐 / 休息', drive: 0, type: '补给', hint: '码头附近补给，停车和用餐时间填在这里。' },
-      { id: 'ruichang', name: '汉庭九江瑞昌广场酒店', drive: 96, km: 109.1, type: '住宿', hint: '10月2日至3日已订；导航点为高德“汉庭酒店(九江瑞昌广场店)”。' }
+      { id: 'ruichang', name: '九江快乐城美仑酒店', drive: 96, km: 109.1, type: '住宿', hint: '10月2日至3日已订；请在高德搜索“九江快乐城美仑酒店”核对具体入口和停车场。' }
     ]
   },
   {
-    date: 3, start: '09:30', origin: '汉庭九江瑞昌广场酒店', title: '庐山山下 → 南昌夜景', subtitle: '09:30出发 · 落星墩后先到象湖星程入住 · 再看夜景',
+    date: 3, start: '09:30', origin: '九江快乐城美仑酒店', title: '庐山山下 → 南昌夜景', subtitle: '09:30出发 · 落星墩后先到象湖星程入住 · 再看夜景',
     stops: [
       { id: 'donglin', name: '东林寺祖庭', drive: 53, km: 38.7, type: '景点', hint: '高德导航点为“东林寺”，不是东林大佛；停车和入寺时间另填。' },
       { id: 'xiufeng', name: '秀峰 · 山下远观', drive: 60, km: 38.2, type: '景点', hint: '高德导航点为“秀峰风景名胜区”入口附近；仅在山下看瀑，不进山。门外视线与水量不能保证。' },
@@ -77,6 +77,13 @@ function loadSavedState() {
     if (/^\d{2}:\d{2}$/.test(saved.inboundStart || '')) inboundStart = saved.inboundStart;
     if (saved.values && typeof saved.values === 'object') Object.assign(values, saved.values);
     if (Array.isArray(saved.history)) changeHistory = saved.history.slice(-60);
+    const oldRuichang = tripDays.find(day => day.date === 2)?.stops.find(stop => stop.id === 'ruichang');
+    if (oldRuichang?.name === '汉庭九江瑞昌广场酒店') {
+      oldRuichang.name = '九江快乐城美仑酒店';
+      oldRuichang.hint = '10月2日至3日已订；请在高德搜索“九江快乐城美仑酒店”核对具体入口和停车场。';
+    }
+    const oldRuichangOrigin = tripDays.find(day => day.date === 3);
+    if (oldRuichangOrigin?.origin === '汉庭九江瑞昌广场酒店') oldRuichangOrigin.origin = '九江快乐城美仑酒店';
   } catch (_) {}
 }
 
@@ -164,7 +171,7 @@ function renderInbound() {
     const movable = index <= maxMovableIndex;
     return `<article class="stop ${editable ? 'charger' : 'hotel'}">
       <div class="drive">从上一站开车 · ${duration(Math.round(stop.driveSeconds / 60))} · ${stop.km.toFixed(1)}公里（高德路线）</div>
-      <div class="stop-title"><h3>${safe(stop.name)}</h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="inbound">删除</button>` : ''}</div></div>
+      <div class="stop-title"><h3 class="editable-name"><input data-name-stop="${safe(stop.id)}" data-day="inbound" type="text" maxlength="60" value="${safe(stop.name)}" aria-label="编辑地点名称：${safe(stop.name)}" title="点击修改地点名称"></h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="inbound">删除</button>` : ''}</div></div>
       <p class="tip">${safe(stop.hint)}</p>
       ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">在高德核对比亚迪闪充站 ↗</a>` : ''}
       <div class="route-edit"><label for="drive-inbound-${safe(stop.id)}">从上一站开车</label><input id="drive-inbound-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="inbound" type="number" min="0" max="1440" step="1" value="${Math.round(stop.driveSeconds / 60)}" inputmode="numeric">分钟 <em>换序后请按高德修正</em></div>
@@ -208,7 +215,7 @@ function render() {
       const kind = stop.type === '住宿' || stop.type === '入住' ? 'hotel' : stop.type === '到达' ? 'finish' : '';
       return `<article class="stop ${kind}">
         <div class="drive">${stop.drive === 0 ? safe(stop.transfer || '同在王英码头 · 无公路转场') : `从上一站开车 · ${duration(stop.drive)} · ${stop.km.toFixed(1)}公里（高德）`}</div>
-        <div class="stop-title"><h3>${safe(stop.name)}</h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="${day.date}">删除</button>` : ''}</div></div>
+        <div class="stop-title"><h3 class="editable-name"><input data-name-stop="${safe(stop.id)}" data-day="${day.date}" type="text" maxlength="60" value="${safe(stop.name)}" aria-label="编辑地点名称：${safe(stop.name)}" title="点击修改地点名称"></h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="${day.date}">删除</button>` : ''}</div></div>
         <p class="tip">${safe(stop.hint)}</p>
         ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">查看高德位置 ↗</a>` : ''}
         <div class="route-edit"><label for="drive-${day.date}-${safe(stop.id)}">从上一站开车</label><input id="drive-${day.date}-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="${day.date}" type="number" min="0" max="1440" step="1" value="${stop.drive}" inputmode="numeric">分钟 <em>换序后请按高德修正</em></div>
@@ -329,7 +336,31 @@ document.addEventListener('input', event => {
   queueSave('更新停留时间');
 });
 
+document.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && event.target.matches('input[data-name-stop]')) {
+    event.preventDefault();
+    event.target.blur();
+  }
+});
+
 document.addEventListener('change', event => {
+  const nameInput = event.target.closest('input[data-name-stop]');
+  if (nameInput) {
+    const dayKey = nameInput.dataset.day;
+    const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === String(dayKey));
+    const stop = target?.stops.find(item => item.id === nameInput.dataset.nameStop);
+    if (!stop) return;
+    const nextName = nameInput.value.trim();
+    if (!nextName) {
+      nameInput.value = stop.name;
+      return;
+    }
+    const previousName = stop.name;
+    stop.name = nextName;
+    render();
+    saveState(`修改地点名称：${previousName} → ${nextName}`);
+    return;
+  }
   const driveInput = event.target.closest('input[data-drive-stop]');
   if (driveInput) {
     const dayKey = driveInput.dataset.day;
