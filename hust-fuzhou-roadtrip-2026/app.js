@@ -93,6 +93,17 @@ function loadSavedState() {
     }
     const oldRuichangOrigin = tripDays.find(day => day.date === 3);
     if (oldRuichangOrigin?.origin === '汉庭九江瑞昌广场酒店') oldRuichangOrigin.origin = '九江快乐城美仑酒店';
+    const resetInvalidRoute = (stop, defaultStop) => {
+      const drive = stop.driveSeconds ?? stop.drive;
+      if (stop.routeSource && (!(Number(stop.km) > 0) || !(Number(drive) > 0))) {
+        if (defaultStop.driveSeconds !== undefined) stop.driveSeconds = defaultStop.driveSeconds;
+        else if (defaultStop.drive !== undefined) stop.drive = defaultStop.drive;
+        if (defaultStop.km !== undefined) stop.km = defaultStop.km;
+        delete stop.routeSource;
+      }
+    };
+    inbound.stops.forEach(stop => resetInvalidRoute(stop, defaultInbound.stops.find(item => item.id === stop.id) || {}));
+    tripDays.forEach(day => day.stops.forEach(stop => resetInvalidRoute(stop, defaultTripDays.flatMap(item => item.stops).find(item => item.id === stop.id) || {})));
   } catch (_) {}
 }
 
@@ -159,7 +170,7 @@ function loadAmapApi() {
     const script = document.createElement('script');
     window[callbackName] = () => {
       try {
-        window.AMap.plugin(['AMap.Geocoder', 'AMap.Driving'], () => {
+        window.AMap.plugin(['AMap.Geocoder', 'AMap.Driving', 'AMap.PlaceSearch'], () => {
           window.__roadtripAmapKey = amapKey;
           delete window[callbackName];
           resolve(window.AMap);
@@ -170,7 +181,7 @@ function loadAmapApi() {
         reject(error);
       }
     };
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&plugin=AMap.Geocoder,AMap.Driving&callback=${callbackName}`;
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&plugin=AMap.Geocoder,AMap.Driving,AMap.PlaceSearch&callback=${callbackName}`;
     script.async = true;
     script.onerror = () => {
       delete window[callbackName];
@@ -193,12 +204,35 @@ function geocodeAmap(AMap, address) {
   });
 }
 
+function searchPlaceAmap(AMap, address) {
+  const query = String(address).replace(/^比亚迪闪充\s*[·•]\s*/, '').trim();
+  return new Promise((resolve, reject) => {
+    const search = new AMap.PlaceSearch({ pageSize: 10, city: '全国' });
+    search.search(query, (status, result) => {
+      const poi = result?.poiList?.pois?.find(item => item.location);
+      if (status === 'complete' && poi) resolve({ location: poi.location, label: poi.name });
+      else reject(new Error(`高德找不到地点“${address}”`));
+    });
+  });
+}
+
+async function resolveAmapLocation(AMap, address) {
+  try {
+    return await searchPlaceAmap(AMap, address);
+  } catch (_) {
+    return { location: await geocodeAmap(AMap, address), label: address };
+  }
+}
+
 function driveAmap(AMap, origin, destination) {
   return new Promise((resolve, reject) => {
     const driving = new AMap.Driving({ policy: AMap.DrivingPolicy.LEAST_TIME });
     driving.search(origin, destination, (status, result) => {
       const route = result?.routes?.[0];
-      if (status === 'complete' && route) resolve({ seconds: Number(route.time), km: Number(route.distance) / 1000 });
+      const seconds = Number(route?.time);
+      const km = Number(route?.distance) / 1000;
+      if (status === 'complete' && route && Number.isFinite(seconds) && Number.isFinite(km) && seconds > 0 && km > 0) resolve({ seconds, km });
+      else if (status === 'complete' && route) reject(new Error('高德返回了0分钟或0公里，请把地点名称改得更具体后重算。'));
       else reject(new Error('高德没有返回可行驾车路线'));
     });
   });
@@ -219,8 +253,8 @@ async function updateRouteFromAmap(dayKey, stopId) {
   setAmapStatus(`正在用高德计算：${previous} → ${stop.name}…`);
   try {
     const AMap = await loadAmapApi();
-    const [origin, destination] = await Promise.all([geocodeAmap(AMap, previous), geocodeAmap(AMap, stop.name)]);
-    const route = await driveAmap(AMap, origin, destination);
+    const [origin, destination] = await Promise.all([resolveAmapLocation(AMap, previous), resolveAmapLocation(AMap, stop.name)]);
+    const route = await driveAmap(AMap, origin.location, destination.location);
     if (token !== routeRequestToken) return;
     if (dayKey === 'inbound') stop.driveSeconds = Math.max(0, Math.round(route.seconds));
     else stop.drive = Math.max(0, Math.round(route.seconds / 60));
