@@ -364,7 +364,7 @@ function render() {
     const maxMovableIndex = (terminalIndex === -1 ? info.stops.length : terminalIndex) - 1;
     const cards = info.stops.map((stop, index) => {
       const editable = stop.type !== '住宿' && stop.type !== '到达' && stop.type !== '入住';
-      const deletable = editable;
+      const deletable = stop.type !== '住宿' && stop.type !== '到达';
       const movable = index <= maxMovableIndex;
       const kind = stop.type === '住宿' || stop.type === '入住' ? 'hotel' : stop.type === '到达' ? 'finish' : '';
       return `<article class="stop ${kind}">
@@ -399,7 +399,7 @@ function removeStop(dayKey, stopId) {
   const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === String(dayKey));
   if (!target) return;
   const stop = target.stops.find(item => item.id === stopId);
-  if (!stop || stop.type === '住宿' || stop.type === '到达' || stop.type === '入住') return;
+  if (!stop || stop.type === '住宿' || stop.type === '到达') return;
   if (!window.confirm(`删除“${stop.name}”？删除后后续时间会重新计算。`)) return;
   target.stops = target.stops.filter(item => item.id !== stopId);
   delete values[stopId];
