@@ -1,4 +1,4 @@
-const tripDays = [
+const defaultTripDays = [
   {
     date: 2, start: '14:00', origin: '全季武汉光谷湖北经济学院酒店', title: '武汉 → 仙岛湖 → 瑞昌', subtitle: '14:00从已订全季出发 · 揽胜亭后坐公交船 · 已订瑞昌汉庭',
     stops: [
@@ -36,7 +36,7 @@ const tripDays = [
   }
 ];
 
-const inbound = {
+const defaultInbound = {
   date: 1,
   origin: '福州湾二期（西北门）',
   title: '福州 → 顺昌 → 抚州 → 九江 → 武汉',
@@ -48,9 +48,65 @@ const inbound = {
     { id: 'wuhan_in', name: '全季武汉光谷湖北经济学院酒店', driveSeconds: 9065, km: 229.2, type: '住宿', hint: '10月1日至2日已订。到店后的入住、休息不计入当天抵达时间；10月2日返程固定14:00从这里出发。' }
   ]
 };
+let tripDays = JSON.parse(JSON.stringify(defaultTripDays));
+let inbound = JSON.parse(JSON.stringify(defaultInbound));
 let inboundStart = '02:00';
 
+const STORAGE_KEY = 'hust-fuzhou-roadtrip-planner-v2';
 const values = Object.create(null);
+let changeHistory = [];
+let saveTimer = null;
+
+function snapshot() {
+  return {
+    version: 2,
+    tripDays: JSON.parse(JSON.stringify(tripDays)),
+    inbound: JSON.parse(JSON.stringify(inbound)),
+    inboundStart,
+    values: { ...values },
+    history: changeHistory.slice(-60)
+  };
+}
+
+function loadSavedState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (!saved || saved.version !== 2) return;
+    if (Array.isArray(saved.tripDays)) tripDays = saved.tripDays;
+    if (saved.inbound && Array.isArray(saved.inbound.stops)) inbound = saved.inbound;
+    if (/^\d{2}:\d{2}$/.test(saved.inboundStart || '')) inboundStart = saved.inboundStart;
+    if (saved.values && typeof saved.values === 'object') Object.assign(values, saved.values);
+    if (Array.isArray(saved.history)) changeHistory = saved.history.slice(-60);
+  } catch (_) {}
+}
+
+function saveState(label = '修改行程') {
+  const item = { at: new Date().toISOString(), label };
+  changeHistory.push(item);
+  changeHistory = changeHistory.slice(-60);
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot())); } catch (_) {}
+  updateSaveStatus();
+}
+
+function queueSave(label) {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveState(label), 350);
+}
+
+function updateSaveStatus() {
+  const status = document.getElementById('save-status');
+  const history = document.getElementById('change-history');
+  if (status) {
+    const last = changeHistory.at(-1);
+    status.textContent = last ? `已保存 · ${new Date(last.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '尚未修改';
+  }
+  if (history) {
+    history.innerHTML = changeHistory.length ? changeHistory.slice().reverse().slice(0, 12).map(item => `<li><time>${safe(new Date(item.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }))}</time><span>${safe(item.label)}</span></li>`).join('') : '<li class="empty-history">还没有修改记录</li>';
+  }
+}
+
+loadSavedState();
+
 const minutes = value => Math.max(0, Number.isFinite(Number(value)) ? Math.min(1440, Number(value)) : 0);
 const pad = num => String(num).padStart(2, '0');
 const at = (day, time) => { const [hour, minute] = time.split(':').map(Number); return new Date(2026, 9, day, hour, minute); };
@@ -102,9 +158,10 @@ function renderInbound() {
   const missing = info.stops.some(stop => stop.type === '闪充' && values[stop.id] === undefined);
   const cards = info.stops.map(stop => {
     const editable = stop.type === '闪充';
+    const deletable = stop.type !== '住宿';
     return `<article class="stop ${editable ? 'charger' : 'hotel'}">
       <div class="drive">从上一站开车 · ${duration(Math.round(stop.driveSeconds / 60))} · ${stop.km.toFixed(1)}公里（高德路线）</div>
-      <div class="stop-title"><h3>${safe(stop.name)}</h3><span class="badge">${safe(stop.type)}</span></div>
+      <div class="stop-title"><h3>${safe(stop.name)}</h3><span class="badge">${safe(stop.type)}</span>${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="inbound">删除</button>` : ''}</div>
       <p class="tip">${safe(stop.hint)}</p>
       ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">在高德核对比亚迪闪充站 ↗</a>` : ''}
       <div class="times"><span>抵达 <strong>${stampRounded(stop.arrival)}</strong></span><span class="depart">${editable ? '离开' : '到店'} <strong>${stampRounded(stop.depart)}</strong></span></div>
@@ -137,11 +194,12 @@ function render() {
     if (day.date === 4 && info.end.getDate() > 4) notes.push('预计10月5日才到三江口；可考虑沙县住一晚。');
     else if (day.date === 4 && info.stops.find(stop => stop.id === 'yujiao').depart >= at(4, '16:00')) notes.push('沙县小吃步行圈预计16:00后才结束；留意疲劳和夜间路况。');
     const cards = info.stops.map(stop => {
-      const editable = stop.type !== '住宿' && stop.type !== '到达';
+      const editable = stop.type !== '住宿' && stop.type !== '到达' && stop.type !== '入住';
+      const deletable = editable;
       const kind = stop.type === '住宿' || stop.type === '入住' ? 'hotel' : stop.type === '到达' ? 'finish' : '';
       return `<article class="stop ${kind}">
         <div class="drive">${stop.drive === 0 ? safe(stop.transfer || '同在王英码头 · 无公路转场') : `从上一站开车 · ${duration(stop.drive)} · ${stop.km.toFixed(1)}公里（高德）`}</div>
-        <div class="stop-title"><h3>${safe(stop.name)}</h3><span class="badge">${safe(stop.type)}</span></div>
+        <div class="stop-title"><h3>${safe(stop.name)}</h3><span class="badge">${safe(stop.type)}</span>${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="${day.date}">删除</button>` : ''}</div>
         <p class="tip">${safe(stop.hint)}</p>
         ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">查看高德位置 ↗</a>` : ''}
         <div class="times"><span>抵达 <strong>${stamp(stop.arrival)}</strong></span><span class="depart">${editable ? '离开' : '时间'} <strong>${stamp(stop.depart)}</strong></span></div>
@@ -156,7 +214,72 @@ function render() {
       <div class="day-foot"><p>高德规划驾驶合计 ${duration(info.driving)} · 已填停留 ${duration(info.playing)}${info.waiting ? ` · 自动等待 ${duration(info.waiting)}` : ''}</p>${notes.length ? notes.map(note => `<p class="warn">${safe(note)}</p>`).join('') : '<p>路段时间固定；填写停留分钟后，后续时间会更新。</p>'}</div>
     </section>`;
   }).join('');
+  updateSaveStatus();
 }
+
+function toggleEditor(open) {
+  const panel = document.getElementById('editor-panel');
+  if (!panel) return;
+  panel.hidden = open === undefined ? !panel.hidden : !open;
+  if (!panel.hidden) document.getElementById('edit-name')?.focus();
+}
+
+function removeStop(dayKey, stopId) {
+  const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === String(dayKey));
+  if (!target) return;
+  const stop = target.stops.find(item => item.id === stopId);
+  if (!stop || stop.type === '住宿' || stop.type === '到达' || stop.type === '入住') return;
+  if (!window.confirm(`删除“${stop.name}”？删除后后续时间会重新计算。`)) return;
+  target.stops = target.stops.filter(item => item.id !== stopId);
+  delete values[stopId];
+  render();
+  saveState(`删除目的地：${stop.name}`);
+}
+
+document.getElementById('toggle-editor')?.addEventListener('click', () => toggleEditor());
+document.getElementById('cancel-editor')?.addEventListener('click', () => toggleEditor(false));
+document.getElementById('reset-plan')?.addEventListener('click', () => {
+  if (!window.confirm('恢复默认行程？当前新增、删除和停留时间都会清除。')) return;
+  tripDays = JSON.parse(JSON.stringify(defaultTripDays));
+  inbound = JSON.parse(JSON.stringify(defaultInbound));
+  inboundStart = '02:00';
+  Object.keys(values).forEach(key => delete values[key]);
+  changeHistory = [];
+  try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+  render();
+  saveState('恢复默认行程');
+});
+
+document.getElementById('stop-form')?.addEventListener('submit', event => {
+  event.preventDefault();
+  const dayKey = document.getElementById('edit-day').value;
+  const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === dayKey);
+  const name = document.getElementById('edit-name').value.trim();
+  if (!target || !name) return;
+  const id = `custom-${Date.now()}`;
+  const type = document.getElementById('edit-type').value;
+  const drive = minutes(document.getElementById('edit-drive').value);
+  const km = Math.max(0, Number(document.getElementById('edit-km').value) || 0);
+  const stay = minutes(document.getElementById('edit-stay').value);
+  const hint = document.getElementById('edit-hint').value.trim() || '自定义目的地；请按当天高德导航、停车和现场情况调整。';
+  const stop = dayKey === 'inbound'
+    ? { id, name, driveSeconds: drive * 60, km, type, hint, custom: true }
+    : { id, name, drive, km, type, hint, custom: true };
+  const fixedIndex = target.stops.findIndex(item => item.type === '住宿' || item.type === '入住' || item.type === '到达');
+  target.stops.splice(fixedIndex === -1 ? target.stops.length : fixedIndex, 0, stop);
+  if (stay > 0 && type !== '住宿' && type !== '到达' && type !== '入住') values[id] = String(stay);
+  event.target.reset();
+  document.getElementById('edit-drive').value = '30';
+  document.getElementById('edit-km').value = '0';
+  document.getElementById('edit-stay').value = '30';
+  render();
+  saveState(`新增目的地：${name}`);
+});
+
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-delete-stop]');
+  if (button) removeStop(button.dataset.day, button.dataset.deleteStop);
+});
 
 document.addEventListener('input', event => {
   const input = event.target.closest('input[data-stop]');
@@ -169,12 +292,14 @@ document.addEventListener('input', event => {
   const replacement = document.getElementById(`play-${stopId}`);
   replacement?.focus({ preventScroll: true });
   if (caret !== null) try { replacement.setSelectionRange(caret, caret); } catch (_) {}
+  queueSave('更新停留时间');
 });
 
 document.addEventListener('change', event => {
   if (event.target?.id !== 'inbound-start') return;
   if (/^\d{2}:\d{2}$/.test(event.target.value)) inboundStart = event.target.value;
   render();
+  saveState('调整10月1日出发时间');
 });
 
 render();
