@@ -56,6 +56,10 @@ const STORAGE_KEY = 'hust-fuzhou-roadtrip-planner-v2';
 const values = Object.create(null);
 let changeHistory = [];
 let saveTimer = null;
+let amapKey = '';
+let amapSecurityCode = '';
+let amapReadyPromise = null;
+let routeRequestToken = 0;
 
 function snapshot() {
   return {
@@ -64,7 +68,8 @@ function snapshot() {
     inbound: JSON.parse(JSON.stringify(inbound)),
     inboundStart,
     values: { ...values },
-    history: changeHistory.slice(-60)
+    history: changeHistory.slice(-60),
+    amap: { key: amapKey, securityCode: amapSecurityCode }
   };
 }
 
@@ -77,6 +82,10 @@ function loadSavedState() {
     if (/^\d{2}:\d{2}$/.test(saved.inboundStart || '')) inboundStart = saved.inboundStart;
     if (saved.values && typeof saved.values === 'object') Object.assign(values, saved.values);
     if (Array.isArray(saved.history)) changeHistory = saved.history.slice(-60);
+    if (saved.amap && typeof saved.amap === 'object') {
+      amapKey = typeof saved.amap.key === 'string' ? saved.amap.key : '';
+      amapSecurityCode = typeof saved.amap.securityCode === 'string' ? saved.amap.securityCode : '';
+    }
     const oldRuichang = tripDays.find(day => day.date === 2)?.stops.find(stop => stop.id === 'ruichang');
     if (oldRuichang?.name === '汉庭九江瑞昌广场酒店') {
       oldRuichang.name = '九江快乐城美仑酒店';
@@ -124,6 +133,98 @@ const stampRounded = date => stamp(new Date(date.getTime() + 30000));
 const clock = date => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 const duration = amount => amount >= 60 ? `${Math.floor(amount / 60)}小时${amount % 60 ? `${amount % 60}分` : ''}` : `${amount}分钟`;
 const safe = string => String(string).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
+function setAmapStatus(message, isError = false) {
+  const status = document.getElementById('amap-status');
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle('error', isError);
+}
+
+function syncAmapSettingsUI() {
+  const keyInput = document.getElementById('amap-key');
+  const codeInput = document.getElementById('amap-security-code');
+  if (keyInput && document.activeElement !== keyInput) keyInput.value = amapKey;
+  if (codeInput && document.activeElement !== codeInput) codeInput.value = amapSecurityCode;
+}
+
+function loadAmapApi() {
+  if (!amapKey) return Promise.reject(new Error('请先填写高德 Key。'));
+  if (!amapSecurityCode) return Promise.reject(new Error('请先填写高德安全密钥。'));
+  if (window.AMap && window.__roadtripAmapKey === amapKey) return Promise.resolve(window.AMap);
+  if (amapReadyPromise) return amapReadyPromise;
+  window._AMapSecurityConfig = { securityJsCode: amapSecurityCode };
+  amapReadyPromise = new Promise((resolve, reject) => {
+    const callbackName = `__roadtripAmapReady_${Date.now()}`;
+    const script = document.createElement('script');
+    window[callbackName] = () => {
+      window.__roadtripAmapKey = amapKey;
+      delete window[callbackName];
+      resolve(window.AMap);
+    };
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey)}&callback=${callbackName}`;
+    script.async = true;
+    script.onerror = () => {
+      delete window[callbackName];
+      amapReadyPromise = null;
+      reject(new Error('高德地图脚本加载失败，请检查 Key、域名白名单或网络。'));
+    };
+    document.head.appendChild(script);
+  });
+  return amapReadyPromise;
+}
+
+function geocodeAmap(AMap, address) {
+  return new Promise((resolve, reject) => {
+    const geocoder = new AMap.Geocoder({ city: '全国' });
+    geocoder.getLocation(address, (status, result) => {
+      const location = result?.geocodes?.[0]?.location;
+      if (status === 'complete' && location) resolve(location);
+      else reject(new Error(`找不到“${address}”`));
+    });
+  });
+}
+
+function driveAmap(AMap, origin, destination) {
+  return new Promise((resolve, reject) => {
+    const driving = new AMap.Driving({ policy: AMap.DrivingPolicy.LEAST_TIME });
+    driving.search(origin, destination, (status, result) => {
+      const route = result?.routes?.[0];
+      if (status === 'complete' && route) resolve({ seconds: Number(route.time), km: Number(route.distance) / 1000 });
+      else reject(new Error('高德没有返回可行驾车路线'));
+    });
+  });
+}
+
+async function updateRouteFromAmap(dayKey, stopId) {
+  const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === String(dayKey));
+  if (!target) return;
+  const index = target.stops.findIndex(item => item.id === stopId);
+  const stop = index < 0 ? null : target.stops[index];
+  if (!stop) return;
+  if (stop.drive === 0 && stop.transfer) {
+    setAmapStatus('该站按步行衔接，未调用驾车规划。');
+    return;
+  }
+  const previous = index > 0 ? target.stops[index - 1].name : target.origin;
+  const token = ++routeRequestToken;
+  setAmapStatus(`正在用高德计算：${previous} → ${stop.name}…`);
+  try {
+    const AMap = await loadAmapApi();
+    const [origin, destination] = await Promise.all([geocodeAmap(AMap, previous), geocodeAmap(AMap, stop.name)]);
+    const route = await driveAmap(AMap, origin, destination);
+    if (token !== routeRequestToken) return;
+    if (dayKey === 'inbound') stop.driveSeconds = Math.max(0, Math.round(route.seconds));
+    else stop.drive = Math.max(0, Math.round(route.seconds / 60));
+    stop.km = Math.round(route.km * 10) / 10;
+    stop.routeSource = '高德实时计算';
+    render();
+    saveState(`高德更新路段：${stop.name} · ${stop.km.toFixed(1)}公里`);
+    setAmapStatus(`已更新：${duration(Math.round(route.seconds / 60))} · ${stop.km.toFixed(1)}公里`);
+  } catch (error) {
+    if (token === routeRequestToken) setAmapStatus(error.message || '高德计算失败，请检查设置。', true);
+  }
+}
 
 function compute(day) {
   let cursor = at(day.date, day.start), driving = 0, playing = 0, waiting = 0;
@@ -189,6 +290,7 @@ function renderInbound() {
 }
 
 function render() {
+  syncAmapSettingsUI();
   renderInbound();
   const target = document.getElementById('days');
   target.innerHTML = tripDays.map(day => {
@@ -273,6 +375,13 @@ document.getElementById('cancel-editor')?.addEventListener('click', () => toggle
 document.getElementById('export-pdf')?.addEventListener('click', () => {
   toggleEditor(false);
   window.setTimeout(() => window.print(), 50);
+});
+document.getElementById('save-amap-settings')?.addEventListener('click', () => {
+  amapKey = document.getElementById('amap-key')?.value.trim() || '';
+  amapSecurityCode = document.getElementById('amap-security-code')?.value.trim() || '';
+  amapReadyPromise = null;
+  saveState('保存高德自动算路设置');
+  setAmapStatus(amapKey && amapSecurityCode ? '设置已保存：修改地点名称后会自动计算路程。' : '请同时填写 Key 和安全密钥。', !(amapKey && amapSecurityCode));
 });
 document.getElementById('reset-plan')?.addEventListener('click', () => {
   if (!window.confirm('恢复默认行程？当前新增、删除和停留时间都会清除。')) return;
@@ -359,6 +468,8 @@ document.addEventListener('change', event => {
     stop.name = nextName;
     render();
     saveState(`修改地点名称：${previousName} → ${nextName}`);
+    if (amapKey && amapSecurityCode) updateRouteFromAmap(dayKey, stop.id);
+    else setAmapStatus('地点名称已保存；填写高德 Key 后可自动计算这段路程。');
     return;
   }
   const driveInput = event.target.closest('input[data-drive-stop]');
