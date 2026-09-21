@@ -226,6 +226,14 @@ async function updateRouteFromAmap(dayKey, stopId) {
   }
 }
 
+async function updateAffectedRoutesFromAmap(dayKey, stopId) {
+  await updateRouteFromAmap(dayKey, stopId);
+  const target = dayKey === 'inbound' ? inbound : tripDays.find(day => String(day.date) === String(dayKey));
+  const index = target?.stops.findIndex(item => item.id === stopId) ?? -1;
+  const next = index >= 0 ? target.stops[index + 1] : null;
+  if (next && !(next.drive === 0 && next.transfer)) await updateRouteFromAmap(dayKey, next.id);
+}
+
 function compute(day) {
   let cursor = at(day.date, day.start), driving = 0, playing = 0, waiting = 0;
   const stops = day.stops.map(stop => {
@@ -271,11 +279,11 @@ function renderInbound() {
     const deletable = stop.type !== '住宿';
     const movable = index <= maxMovableIndex;
     return `<article class="stop ${editable ? 'charger' : 'hotel'}">
-      <div class="drive">从上一站开车 · ${duration(Math.round(stop.driveSeconds / 60))} · ${stop.km.toFixed(1)}公里（高德路线）</div>
+      <div class="drive">从上一站开车 · ${duration(Math.round(stop.driveSeconds / 60))} · ${stop.km.toFixed(1)}公里 <span class="route-source ${stop.routeSource ? 'live' : ''}">${stop.routeSource ? '高德实时' : '计划值'}</span></div>
       <div class="stop-title"><h3 class="editable-name"><input data-name-stop="${safe(stop.id)}" data-day="inbound" type="text" maxlength="60" value="${safe(stop.name)}" aria-label="编辑地点名称：${safe(stop.name)}" title="点击修改地点名称"></h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="inbound" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="inbound">删除</button>` : ''}</div></div>
       <p class="tip">${safe(stop.hint)}</p>
       ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">在高德核对比亚迪闪充站 ↗</a>` : ''}
-      <div class="route-edit"><label for="drive-inbound-${safe(stop.id)}">从上一站开车</label><input id="drive-inbound-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="inbound" type="number" min="0" max="1440" step="1" value="${Math.round(stop.driveSeconds / 60)}" inputmode="numeric">分钟 <em>换序后请按高德修正</em></div>
+      <div class="route-edit"><label for="drive-inbound-${safe(stop.id)}">从上一站开车</label><input id="drive-inbound-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="inbound" type="number" min="0" max="1440" step="1" value="${Math.round(stop.driveSeconds / 60)}" inputmode="numeric">分钟 <em>换序后请按高德修正</em>${!(stop.driveSeconds === 0 && stop.transfer) ? `<span class="route-source ${stop.routeSource ? 'live' : ''}">${stop.routeSource ? '已用高德更新' : '尚未实时计算'}</span><button class="amap-recalc" type="button" data-amap-route="${safe(stop.id)}" data-day="inbound">高德重算</button>` : ''}</div>
       <div class="times"><span>抵达 <strong>${stampRounded(stop.arrival)}</strong></span><span class="depart">${editable ? '离开' : '到店'} <strong>${stampRounded(stop.depart)}</strong></span></div>
       ${editable ? `<div class="play"><label for="play-${stop.id}">闪充 / 休息总时长</label><div class="input-wrap"><input id="play-${stop.id}" data-stop="${stop.id}" type="number" min="0" max="1440" step="5" inputmode="numeric" placeholder="如 30" value="${safe(values[stop.id] ?? '')}" aria-label="${safe(stop.name)}闪充和休息总分钟数">分钟</div></div>` : ''}
     </article>`;
@@ -316,11 +324,11 @@ function render() {
       const movable = index <= maxMovableIndex;
       const kind = stop.type === '住宿' || stop.type === '入住' ? 'hotel' : stop.type === '到达' ? 'finish' : '';
       return `<article class="stop ${kind}">
-        <div class="drive">${stop.drive === 0 ? safe(stop.transfer || '同在王英码头 · 无公路转场') : `从上一站开车 · ${duration(stop.drive)} · ${stop.km.toFixed(1)}公里（高德）`}</div>
+        <div class="drive">${stop.drive === 0 ? safe(stop.transfer || '同在王英码头 · 无公路转场') : `从上一站开车 · ${duration(stop.drive)} · ${stop.km.toFixed(1)}公里`} ${stop.drive === 0 ? '' : `<span class="route-source ${stop.routeSource ? 'live' : ''}">${stop.routeSource ? '高德实时' : '计划值'}</span>`}</div>
         <div class="stop-title"><h3 class="editable-name"><input data-name-stop="${safe(stop.id)}" data-day="${day.date}" type="text" maxlength="60" value="${safe(stop.name)}" aria-label="编辑地点名称：${safe(stop.name)}" title="点击修改地点名称"></h3><div class="stop-actions"><span class="badge">${safe(stop.type)}</span>${movable ? `<button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="-1" ${index === 0 ? 'disabled' : ''}>↑ 上移</button><button class="move-stop" type="button" data-move-stop="${safe(stop.id)}" data-day="${day.date}" data-direction="1" ${index === maxMovableIndex ? 'disabled' : ''}>↓ 下移</button>` : ''}${deletable ? `<button class="delete-stop" type="button" data-delete-stop="${safe(stop.id)}" data-day="${day.date}">删除</button>` : ''}</div></div>
         <p class="tip">${safe(stop.hint)}</p>
         ${stop.map ? `<a class="map-link" href="${safe(stop.map)}" target="_blank" rel="noopener">查看高德位置 ↗</a>` : ''}
-        <div class="route-edit"><label for="drive-${day.date}-${safe(stop.id)}">从上一站开车</label><input id="drive-${day.date}-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="${day.date}" type="number" min="0" max="1440" step="1" value="${stop.drive}" inputmode="numeric">分钟 <em>换序后请按高德修正</em></div>
+        <div class="route-edit"><label for="drive-${day.date}-${safe(stop.id)}">从上一站开车</label><input id="drive-${day.date}-${safe(stop.id)}" data-drive-stop="${safe(stop.id)}" data-day="${day.date}" type="number" min="0" max="1440" step="1" value="${stop.drive}" inputmode="numeric">分钟 <em>换序后请按高德修正</em>${!(stop.drive === 0 && stop.transfer) ? `<span class="route-source ${stop.routeSource ? 'live' : ''}">${stop.routeSource ? '已用高德更新' : '尚未实时计算'}</span><button class="amap-recalc" type="button" data-amap-route="${safe(stop.id)}" data-day="${day.date}">高德重算</button>` : ''}</div>
         <div class="times"><span>抵达 <strong>${stamp(stop.arrival)}</strong></span><span class="depart">${editable ? '离开' : '时间'} <strong>${stamp(stop.depart)}</strong></span></div>
         ${stop.wait ? `<div class="wait">等到夜景计划时间 · ${duration(stop.wait)}</div>` : ''}
         ${editable ? `<div class="play"><label for="play-${stop.id}">${stop.id === 'pier' ? '坐船往返总时长' : '停留时间'}</label><div class="input-wrap"><input id="play-${stop.id}" data-stop="${stop.id}" type="number" min="0" max="1440" step="5" inputmode="numeric" placeholder="${stop.id === 'pier' ? '如 90' : '0'}" value="${safe(values[stop.id] ?? '')}" aria-label="${safe(stop.name)}${stop.id === 'pier' ? '坐船往返总分钟数' : '停留分钟数'}">分钟</div></div>` : ''}
@@ -422,6 +430,12 @@ document.getElementById('stop-form')?.addEventListener('submit', event => {
 });
 
 document.addEventListener('click', event => {
+  const amapButton = event.target.closest('[data-amap-route]');
+  if (amapButton) {
+    if (amapKey && amapSecurityCode) updateRouteFromAmap(amapButton.dataset.day, amapButton.dataset.amapRoute);
+    else setAmapStatus('请先填写高德 Key 和安全密钥，再点击高德重算。', true);
+    return;
+  }
   const moveButton = event.target.closest('[data-move-stop]');
   if (moveButton) {
     moveStop(moveButton.dataset.day, moveButton.dataset.moveStop, moveButton.dataset.direction);
@@ -468,7 +482,7 @@ document.addEventListener('change', event => {
     stop.name = nextName;
     render();
     saveState(`修改地点名称：${previousName} → ${nextName}`);
-    if (amapKey && amapSecurityCode) updateRouteFromAmap(dayKey, stop.id);
+    if (amapKey && amapSecurityCode) updateAffectedRoutesFromAmap(dayKey, stop.id);
     else setAmapStatus('地点名称已保存；填写高德 Key 后可自动计算这段路程。');
     return;
   }
