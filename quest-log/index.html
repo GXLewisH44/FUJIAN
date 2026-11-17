@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#171923"><meta name="description" content="把生活变成一场值得投入的冒险。记录主线、支线与截止时间，积累属于自己的进度。">
+  <title>人生任务局 · Questlog</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=1">
+</head>
+<body>
+  <svg class="svg-defs" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5Z"/></symbol>
+    <symbol id="i-sword" viewBox="0 0 24 24"><path d="m14 4 6-1-1 6-9 9-4-4Z M4 13l7 7 M3 21l4-4"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6Z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-cup" viewBox="0 0 24 24"><path d="M7 3h10v7a5 5 0 0 1-10 0Z M7 5H3v3a4 4 0 0 0 4 4 M17 5h4v3a4 4 0 0 1-4 4 M12 15v5 M7 21h10"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6 18a5 5 0 1 1 1-10 6 6 0 0 1 11 1 4.5 4.5 0 0 1 0 9 M12 12v9 m-3-3 3 3 3-3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="m14 3 7 7-5 1-3 5-2-2-6 6 M8 11l5-3Z"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14 m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+  </defs></svg>
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="./"><span class="brand-icon"><svg><use href="#i-compass"/></svg></span><span>人生任务局<small>QUESTLOG / LIFE IN PROGRESS</small></span></a>
+      <div class="nav-caption">冒险手册</div>
+      <nav aria-label="主导航" id="nav">
+        <button class="nav-item active" data-view="all"><svg><use href="#i-compass"/></svg><span>任务总览</span></button>
+        <button class="nav-item" data-view="main"><svg><use href="#i-sword"/></svg><span>主线任务</span><b id="nav-main">0</b></button>
+        <button class="nav-item" data-view="side"><svg><use href="#i-spark"/></svg><span>支线任务</span><b id="nav-side">0</b></button>
+        <button class="nav-item" data-view="deadline"><svg><use href="#i-clock"/></svg><span>DDL 时间轴</span><i id="nav-dot"></i></button>
+        <button class="nav-item" data-view="archive"><svg><use href="#i-cup"/></svg><span>成就与归档</span></button>
+      </nav>
+      <div class="side-bottom">
+        <div class="side-note"><span>✦</span><p>每一点进度，<br>都算数。</p><small>YOUR PACE. YOUR ADVENTURE.</small></div>
+        <button class="nav-item" id="storage-btn"><svg><use href="#i-cloud"/></svg><span>存档与同步</span><span class="local-dot"></span></button>
+        <div class="profile"><div class="avatar">旅</div><div><b>自由冒险者</b><small id="side-level">Lv. 1 · 初来乍到</small></div><span class="profile-star">✧</span></div>
+      </div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">我的冒险 <span>/</span> <b id="page-crumb">任务总览</b></div><div class="top-actions"><span id="save-state" role="status">● 此设备已保存</span><button class="button primary small" data-new="side"><svg><use href="#i-plus"/></svg>新建任务</button></div></header>
+      <div class="page">
+        <div class="heading"><div><div class="eyebrow" id="today-label"></div><h1 id="page-title">冒险还在继续<span class="heading-star">✦</span></h1><p id="page-description">把重要的事放在主线，把想尝试的事留给支线。</p></div><div class="chapter-tag">CHAPTER <b>01</b><span>属于你的新篇章</span></div></div>
+        <div id="demo-banner" class="demo-banner"><span>✧ 你正在浏览示例存档，可以先点点看。</span><button id="start-own">建立我的存档 <span>→</span></button></div>
+        <div class="stats" id="stats"></div>
+        <div class="workspace"><section class="quest-area"><div id="hero"></div><div id="view-content"></div></section><aside class="right-rail" id="right-rail"></aside></div>
+        <footer><span>QUESTLOG <span class="footer-star">✦</span> 把日子过成自己的故事</span><span>不必一口气通关，今天推进一点就好。</span></footer>
+      </div>
+    </main>
+  </div>
+  <dialog id="task-dialog" aria-labelledby="task-dialog-title"><form id="task-form"><div class="dialog-head"><div><span class="eyebrow">NEW CHAPTER, NEW QUEST</span><h2 id="task-dialog-title">接取一个新任务</h2></div><button type="button" class="icon-button" data-close aria-label="关闭">×</button></div><input id="task-id" type="hidden">
+    <label>任务名称 <span class="required">*</span><input id="task-title" required maxlength="120" placeholder="你想完成什么？" autocomplete="off"></label>
+    <div class="form-grid"><label>任务类型<select id="task-type"><option value="main">⚔ 主线 · 长期重要目标</option><option value="side">✦ 支线 · 具体事项与探索</option></select></label><label>所属领域<select id="task-area"><option>科研</option><option>工作</option><option>学习</option><option>生活</option><option>健康</option><option>成长</option></select></label></div>
+    <div class="form-grid"><label>截止日期与时间（可不填）<input id="task-due" type="datetime-local"></label><label>重要程度<select id="task-priority"><option value="high">高 · 优先推进</option><option value="normal">中 · 稳步进行</option><option value="low">低 · 有空再做</option></select></label></div>
+    <div class="form-grid"><label>当前状态<select id="task-status"><option value="active">进行中</option><option value="planned">尚未开始</option><option value="waiting">等待中</option><option value="done">已完成</option></select></label><label>任务难度 / 经验<select id="task-difficulty"><option value="1">轻量 · 基础经验 × 1</option><option value="2">挑战 · 基础经验 × 2</option><option value="3">史诗 · 基础经验 × 3</option></select></label></div>
+    <label id="parent-field">关联主线<select id="task-parent"></select></label>
+    <label>拆成小步骤 <small>每行一步，完成后可以逐项勾选</small><textarea id="task-steps" rows="3" maxlength="5000" placeholder="例如：整理思路&#10;完成初稿&#10;检查并提交"></textarea></label>
+    <label>任务说明 / 下一步行动<textarea id="task-notes" rows="2" maxlength="5000" placeholder="记录要求、卡点，或者下一次从哪里开始。"></textarea></label>
+    <label>完成后给自己的奖励<input id="task-reward" maxlength="150" placeholder="比如一杯喜欢的咖啡，或一个自由的下午"></label>
+    <div class="dialog-foot"><button type="button" class="button danger" id="delete-task" hidden>删除任务</button><span class="form-spacer"></span><button type="button" class="button" data-close>取消</button><button class="button primary" type="submit">保存任务</button></div>
+  </form></dialog>
+  <dialog id="storage-dialog" aria-labelledby="storage-title"><div class="dialog-head"><div><span class="eyebrow">SAVE YOUR ADVENTURE</span><h2 id="storage-title">存档与同步</h2></div><button class="icon-button" data-close aria-label="关闭">×</button></div><div class="storage-body"><div id="cloud-panel"></div><div class="storage-section"><h3>随身携带你的进度</h3><p>导出存档后，可以在另一台设备导入。导入会替换此设备上的存档，建议先备份。</p><div class="button-row"><button class="button" id="export-btn">↓ 导出存档 JSON</button><button class="button" id="import-btn">↑ 导入存档</button></div><input type="file" id="import-file" accept=".json,application/json" hidden></div><div class="storage-section"><h3>把 DDL 放进日历</h3><p>导出未完成任务的截止时间，可导入手机或电脑日历。文件包含提前一天的提醒，实际通知取决于日历设置。</p><button class="button" id="calendar-btn">↓ 导出日历 ICS</button></div><div class="storage-note">此设备的数据保存在当前浏览器。清理浏览器数据或使用无痕模式可能丢失存档，请定期导出。</div></div></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-head"><h2 id="confirm-title"></h2></div><p id="confirm-text"></p><div class="dialog-foot"><button class="button" id="confirm-cancel">取消</button><button class="button primary" id="confirm-ok">确认</button></div></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js?v=1"></script>
+</body></html>

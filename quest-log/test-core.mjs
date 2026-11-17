@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {demoSave,fresh,validateSave,deadline,stats,progress,xp,calendar} from './core.js';
+test('示例可导入，步骤和关联保持完整',()=>{const s=demoSave(),loaded=validateSave(JSON.parse(JSON.stringify(s)));assert.equal(loaded.tasks.length,6);assert.equal(loaded.demo,true);assert.equal(loaded.tasks[2].parent,loaded.tasks[0].id);assert.equal(progress(loaded.tasks[0]),50);});
+test('截止时间精确到分钟，逾期、临期、完成互不混淆',()=>{const now=Date.parse('2026-11-17T12:00:00+08:00');const t={due:'2026-11-17T11:59',status:'active'};assert.equal(deadline(t,now).tone,'rose');assert.equal(deadline({...t,due:'2026-11-17T12:20'},now).label,'剩余 20 分钟');assert.equal(deadline({...t,due:'2026-11-19T12:00'},now).days,2);assert.equal(deadline({...t,status:'done'},now).tone,'mint');assert.equal(deadline({...t,due:''},now).days,Infinity);});
+test('经验按已完成任务计算，不可重复刷取',()=>{const s=demoSave();const t=s.tasks[0];const before=stats(s.tasks).exp;t.status='done';const completed=stats(s.tasks);assert.equal(completed.exp,before+xp(t));assert.equal(progress(t),100);t.status='active';assert.equal(stats(s.tasks).exp,before);t.status='done';assert.equal(stats(s.tasks).exp,completed.exp);});
+test('无效、重复任务和损坏截止时间被拒绝',()=>{const s=demoSave();assert.throws(()=>validateSave({tasks:[]}));const dupe=structuredClone(s);dupe.tasks.push(dupe.tasks[0]);assert.throws(()=>validateSave(dupe));s.tasks[0].due='not-a-date';assert.throws(()=>validateSave(s));});
+test('主线删除或变为支线后，关联不会悬空',()=>{const s=demoSave(),parent=s.tasks[0].id;s.tasks=s.tasks.filter(t=>t.id!==parent);assert.equal(validateSave(s).tasks[1].parent,'');});
+test('聚焦至多三项，重新导入也守住上限',()=>{const s=demoSave();s.tasks.forEach(t=>t.pinned=true);assert.equal(validateSave(s).tasks.filter(t=>t.pinned&&t.status!=='done').length,3);});
+test('日历只包含未完成且有DDL的任务，并正确折行中文',()=>{const s=demoSave();s.tasks[0].title='很长的中文任务名称'.repeat(10);s.tasks[1].due='';const ics=calendar(s.tasks);assert.equal((ics.match(/BEGIN:VEVENT/g)||[]).length,4);assert.match(ics,/TRIGGER:-P1D/);assert.match(ics,/DTSTART:\d{8}T\d{6}Z/);for(const line of ics.split('\r\n'))assert.ok(new TextEncoder().encode(line).length<=75);});
+test('空白存档等级从一开始且无伪造成就',()=>{const s=fresh();assert.equal(s.demo,false);assert.deepEqual(stats(s.tasks),{done:0,exp:0,level:1,levelXp:0,active:0,main:0,side:0,soon:0});});
