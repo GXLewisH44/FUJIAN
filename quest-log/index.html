@@ -62,5 +62,5 @@
   <dialog id="storage-dialog" aria-labelledby="storage-title"><div class="dialog-head"><div><span class="eyebrow">SAVE YOUR ADVENTURE</span><h2 id="storage-title">存档与同步</h2></div><button class="icon-button" data-close aria-label="关闭">×</button></div><div class="storage-body"><div id="cloud-panel"></div><div class="storage-section"><h3>随身携带你的进度</h3><p>导出存档后，可以在另一台设备导入。导入会替换此设备上的存档，建议先备份。</p><div class="button-row"><button class="button" id="export-btn">↓ 导出存档 JSON</button><button class="button" id="import-btn">↑ 导入存档</button></div><input type="file" id="import-file" accept=".json,application/json" hidden></div><div class="storage-section"><h3>把 DDL 放进日历</h3><p>导出未完成任务的截止时间，可导入手机或电脑日历。文件包含提前一天的提醒，实际通知取决于日历设置。</p><button class="button" id="calendar-btn">↓ 导出日历 ICS</button></div><div class="storage-note">此设备的数据保存在当前浏览器。清理浏览器数据或使用无痕模式可能丢失存档，请定期导出。</div></div></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-head"><h2 id="confirm-title"></h2></div><p id="confirm-text"></p><div class="dialog-foot"><button class="button" id="confirm-cancel">取消</button><button class="button primary" id="confirm-ok">确认</button></div></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=1"></script>
+  <script type="module" src="./app.js?v=2"></script>
 </body></html>

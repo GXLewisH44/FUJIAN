@@ -1,3 +1,4 @@
+begin;
 -- Run once in the connected Supabase project before setting public config.js.
 -- No service-role credential is used by the website. Each authenticated user sees only their own row.
 create table if not exists public.questlog_saves (
@@ -7,7 +8,7 @@ create table if not exists public.questlog_saves (
   updated_at timestamptz not null default now()
 );
 alter table public.questlog_saves enable row level security;
-revoke all on public.questlog_saves from anon;
+revoke all on public.questlog_saves from public, anon, authenticated;
 grant select, insert, update on public.questlog_saves to authenticated;
 create policy questlog_read_own on public.questlog_saves for select to authenticated using ((select auth.uid()) = user_id);
 create policy questlog_insert_own on public.questlog_saves for insert to authenticated with check ((select auth.uid()) = user_id);
@@ -30,3 +31,6 @@ begin
 end; $$;
 revoke all on function public.questlog_write(bigint,jsonb) from public,anon;
 grant execute on function public.questlog_write(bigint,jsonb) to authenticated;
+
+commit;
+select 'questlog schema ready' as result;

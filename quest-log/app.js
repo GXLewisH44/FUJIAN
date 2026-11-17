@@ -1,5 +1,5 @@
 import {KEY,names,id,dateInput,xp,progress,deadline,stats,fresh,demoSave,validateSave,calendar} from './core.js';
-import {cloudAvailable,cloudMarkup,bindCloud,cloudSummary} from './sync.js';
+import {cloudMarkup,bindCloud,cloudSummary,startCloud,localChanged} from './sync.js?v=2';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -8,16 +8,16 @@ let save,storageError='',view='all',filter='all',sort='due',query='',baseRevisio
 try{const raw=localStorage.getItem(KEY);save=raw?readSave(raw):demoSave();if(!raw)localStorage.setItem(KEY,JSON.stringify(save));baseRevision=save.revision;}catch(err){save=demoSave();storageError='存档不可用：请先导出备份';}
 function readSave(raw){const data=JSON.parse(raw),clean=validateSave(data);clean.revision=typeof data.revision==='string'?data.revision:clean.revision;clean.updatedAt=data.updatedAt||clean.updatedAt;return clean;}
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3800);}
-function persist(next){
+function persist(next,fromCloud=false){
   try{
     const current=localStorage.getItem(KEY);
     if(current&&baseRevision&&JSON.parse(current).revision!==baseRevision)throw new Error('另一窗口已修改存档。请先关闭编辑窗口并刷新页面，再继续保存。');
     const checked=validateSave(next);checked.revision=id();checked.updatedAt=new Date().toISOString();
-    localStorage.setItem(KEY,JSON.stringify(checked));save=checked;baseRevision=checked.revision;storageError='';render();return true;
+    localStorage.setItem(KEY,JSON.stringify(checked));save=checked;baseRevision=checked.revision;storageError='';render();if(!fromCloud)localChanged();return true;
   }catch(err){storageError=err.message||'保存失败，请先导出备份';updateSaveLabel();toast('保存未成功：'+storageError);return false;}
 }
 function mutate(fn){const next=structuredClone(save);fn(next);return persist(next);}
-function updateSaveLabel(){const el=$('#save-state');el.textContent=storageError?'● 保存未成功':cloudSummary()||'● 此设备已保存';el.classList.toggle('warning',Boolean(storageError));el.title=storageError||'当前存档保存在这个浏览器，点击左下角“存档与同步”可备份';}
+function updateSaveLabel(){const el=$('#save-state');el.textContent=storageError?'● 保存未成功':cloudSummary()||'● 此设备已保存';el.classList.toggle('warning',Boolean(storageError));el.title=storageError||'修改先保存在此浏览器；打开“存档与同步”登录后可自动同步和备份';}
 function dateLabel(value,full=false){if(!value)return '未设 DDL';return new Intl.DateTimeFormat('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',...(full?{year:'numeric'}:{})}).format(new Date(value));}
 function ordered(tasks){return [...tasks].sort((a,b)=>sort==='priority'?({high:0,normal:1,low:2}[a.priority]-{high:0,normal:1,low:2}[b.priority]||dueSort(a,b)):sort==='updated'?new Date(b.updatedAt)-new Date(a.updatedAt):dueSort(a,b));}
 function dueSort(a,b){return (a.due?new Date(a.due).getTime():Infinity)-(b.due?new Date(b.due).getTime():Infinity)||a.title.localeCompare(b.title,'zh-CN');}
@@ -99,10 +99,11 @@ $('#export-btn').onclick=()=>{download(JSON.stringify(save,null,2),`questlog-${d
 $('#import-btn').onclick=()=>$('#import-file').click();$('#import-file').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>10*1024*1024){toast('存档文件不能超过 10MB。');return;}try{const imported=validateSave(JSON.parse(await file.text()));if(await confirmAction('导入这份存档？',`包含 ${imported.tasks.length} 个任务。导入将替换此设备的现有存档，请确认已经备份。`,'导入并替换')){if(persist(imported)){$('#storage-dialog').close();toast('存档导入成功。');}}}catch(err){toast('导入失败：'+err.message);}};
 function exportCalendar(){if(!save.tasks.some(t=>t.due&&t.status!=='done')){toast('还没有设置截止时间的未完成任务。');return;}download(calendar(save.tasks),'questlog-deadlines.ics','text/calendar;charset=utf-8');toast('日历文件已导出，请导入你的日历应用。');}
 $('#calendar-btn').onclick=exportCalendar;
-function openStorage(){$('#cloud-panel').innerHTML=cloudMarkup();bindCloud({getSave:()=>save,replace:next=>persist(next),toast,confirm:confirmAction,refresh:()=>{updateSaveLabel();$('#cloud-panel').innerHTML=cloudMarkup();bindCloudPanel();}});$('#storage-dialog').showModal();}
-function bindCloudPanel(){bindCloud({getSave:()=>save,replace:next=>persist(next),toast,confirm:confirmAction,refresh:()=>{$('#cloud-panel').innerHTML=cloudMarkup();bindCloudPanel();updateSaveLabel();}});}
+function refreshCloud(force=false){updateSaveLabel();if($('#storage-dialog').open){if(force||!$('#cloud-auth')||!$('#cloud-auth').contains(document.activeElement)){$('#cloud-panel').innerHTML=cloudMarkup();bindCloud();}}}
+function openStorage(){$('#cloud-panel').innerHTML=cloudMarkup();bindCloud();$('#storage-dialog').showModal();}
 $('#storage-btn').onclick=openStorage;const mobileStorage=document.createElement('button');mobileStorage.className='button storage-mobile-button';mobileStorage.setAttribute('aria-label','存档与同步');mobileStorage.title='存档与同步';mobileStorage.innerHTML=icon('cloud');mobileStorage.onclick=openStorage;document.body.append(mobileStorage);
 window.addEventListener('storage',e=>{if(e.key!==KEY)return;if($$('dialog[open]').length){storageError='另一窗口已更新，请先关闭编辑窗口并刷新';updateSaveLabel();toast('另一窗口已更新存档，当前编辑不会自动覆盖它。');return;}try{if(e.newValue){save=readSave(e.newValue);baseRevision=save.revision;render();toast('已载入另一窗口的最新进度。');}}catch{toast('另一窗口的存档无法读取，请导出当前进度。');}});
 setInterval(()=>{if(!$$('dialog[open]').length&&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))render();},60000);
 render();
+startCloud({getSave:()=>save,replace:next=>persist(next,true),canWrite:()=>!storageError&&JSON.parse(localStorage.getItem(KEY)||'null')?.revision===baseRevision,canApply:()=>!$('#task-dialog').open&&!$('#confirm-dialog').open&&!storageError&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName),toast,confirm:confirmAction,refresh:refreshCloud});
 
