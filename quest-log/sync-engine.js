@@ -1,5 +1,6 @@
 // Every remote write checks the expected version atomically in Postgres.
 export const signature = save => JSON.stringify({schema:save.schema,demo:save.demo,tasks:save.tasks,dailies:save.dailies||[]});
+function normalizedSignature(value){try{return signature(JSON.parse(value));}catch{return value;}}
 export function createSyncEngine(h) {
   let active=true, running=null, again=false;
   const status=(state,message)=>{if(active)h.status(state,message);};
@@ -12,7 +13,7 @@ export function createSyncEngine(h) {
     if(!active)return;
     if(h.canWrite&&!h.canWrite()){status('pending','另一窗口已更新，请先刷新此页面');return;}
     if(signature(h.getSave())!==sig){again=true;return;}
-    const meta=h.getMeta(), own=meta?.uid===h.uid, dirty=!own||sig!==meta.ackSig;
+    const meta=h.getMeta(), own=meta?.uid===h.uid, dirty=!own||sig!==normalizedSignature(meta.ackSig);
     const foreign=meta?.uid&&meta.uid!==h.uid;
     if(remote&&signature(remote.payload)===sig){ack(remote.version,sig);status('synced','已与云端同步');return;}
     if(mode==='pull') {
