@@ -1,5 +1,5 @@
 // Every remote write checks the expected version atomically in Postgres.
-export const signature = save => JSON.stringify({schema:save.schema,demo:save.demo,tasks:save.tasks});
+export const signature = save => JSON.stringify({schema:save.schema,demo:save.demo,tasks:save.tasks,dailies:save.dailies||[]});
 export function createSyncEngine(h) {
   let active=true, running=null, again=false;
   const status=(state,message)=>{if(active)h.status(state,message);};
@@ -22,7 +22,7 @@ export function createSyncEngine(h) {
     }
     if(mode!=='push'&&foreign){status('conflict','此设备存档属于另一个账号，请选择读取或上传');return;}
     if(mode!=='push'&&remote) {
-      if(!dirty||captured.demo||(!own&&!captured.tasks.length)) {
+      if(!dirty||captured.demo||(!own&&!captured.tasks.length&&!captured.dailies?.length)) {
         if(!h.canApply()||!h.replace(remote.payload)){status('pending','云端有更新，将在结束编辑后读取');return;}
         ack(remote.version,signature(h.getSave()));status('synced','已读取另一设备的进度');return;
       }

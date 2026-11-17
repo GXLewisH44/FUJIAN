@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {dayKey,shiftDay,validDay,dailyDone,dailyStreak,dailyStats,setDailyDone} from './daily.js';
+import {fresh,validateSave,stats,demoSave} from './core.js';
+const task=()=>({id:'daily-test',title:'阅读 20 分钟',area:'成长',notes:'读完后记一句话',createdAt:'2026-11-18T00:00:00Z',updatedAt:'2026-11-18T00:00:00Z',completions:[]});
+test('北京时间零点切换到下一天，不受设备时区影响',()=>{assert.equal(dayKey(new Date('2026-11-18T15:59:59Z')),'2026-11-18');assert.equal(dayKey(new Date('2026-11-18T16:00:00Z')),'2026-11-19');assert.equal(shiftDay('2028-03-01',-1),'2028-02-29');assert.equal(shiftDay('2026-01-01',-1),'2025-12-31');});
+test('每天只记一次经验，取消后可以重新打卡',()=>{const t=task();setDailyDone(t,true,'2026-11-18');setDailyDone(t,true,'2026-11-18');assert.equal(stats([],[t]).exp,50);setDailyDone(t,false,'2026-11-18');assert.equal(stats([],[t]).exp,0);setDailyDone(t,true,'2026-11-18');assert.equal(stats([],[t]).exp,50);});
+test('新一天自动待完成，历史记录和经验不会清空',()=>{const t=task();setDailyDone(t,true,'2026-11-18');assert.equal(dailyDone(t,'2026-11-19'),false);assert.deepEqual(dailyStats([t],'2026-11-19'),{done:0,total:1,pending:1,checkins:1});setDailyDone(t,true,'2026-11-19');assert.equal(stats([],[t]).exp,100);assert.equal(dailyStreak(t,'2026-11-19'),2);});
+test('连续打卡在今日未打卡时延续到昨日，断一天后归零',()=>{const t={...task(),completions:['2026-11-16','2026-11-17']};assert.equal(dailyStreak(t,'2026-11-18'),2);assert.equal(dailyStreak(t,'2026-11-19'),0);setDailyDone(t,true,'2026-11-19');assert.equal(dailyStreak(t,'2026-11-19'),1);});
+test('旧存档默认没有每日任务，原任务和经验保持不变',()=>{const legacy=demoSave();delete legacy.dailies;const loaded=validateSave(legacy);assert.deepEqual(loaded.dailies,[]);assert.equal(loaded.tasks.length,legacy.tasks.length);assert.equal(stats(loaded.tasks,loaded.dailies).exp,stats(legacy.tasks).exp);});
+test('每日任务、说明与历史可往返导入导出，重复打卡日期去重',()=>{const s=fresh();s.dailies=[{...task(),completions:['2026-11-18','2026-11-17','2026-11-18']}];const loaded=validateSave(JSON.parse(JSON.stringify(s)));assert.deepEqual(loaded.dailies[0].completions,['2026-11-17','2026-11-18']);assert.equal(loaded.dailies[0].notes,task().notes);assert.equal(stats([],loaded.dailies).exp,100);});
+test('拒绝损坏日期、重复任务和无效每日列表',()=>{for(const day of ['2026-02-30','2026-13-01','yesterday',null])assert.equal(validDay(day),false);for(const dailies of [null,{},[task(),task()],[{...task(),completions:['2026-02-30']}]])assert.throws(()=>validateSave({...fresh(),dailies}));assert.throws(()=>setDailyDone(task(),true,'bad-date'));});

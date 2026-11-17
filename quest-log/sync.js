@@ -1,6 +1,6 @@
 import {cloudConfig as config} from './config.js?v=2';
-import {validateSave} from './core.js';
-import {createSyncEngine} from './sync-engine.js?v=2';
+import {validateSave} from './core.js?v=3';
+import {createSyncEngine} from './sync-engine.js?v=3';
 const AUTH='questlog.auth.v1', META='questlog.sync-meta.v2';
 export const cloudAvailable=Boolean(config.url&&config.publishableKey);
 let session=null,engine=null,hooks=null,refreshing=null,timer,authBusy=false,state='local',message='',lastSynced='';

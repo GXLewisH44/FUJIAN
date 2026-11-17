@@ -1,0 +1,24 @@
+.daily-overview{display:flex;align-items:center;gap:15px;padding:18px 20px;margin:0 0 28px;background:#202b2b;border:1px solid #38514b;border-radius:10px}
+.daily-overview-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#30443d;color:var(--mint);flex-shrink:0}
+.daily-overview h3{font-size:14px;font-weight:500;margin:0}.daily-overview h3 span{font-size:11px;margin-left:10px;color:var(--mint)}
+.daily-overview p{font-size:11px;color:var(--muted);margin:4px 0 0}.daily-overview>.button{margin-left:auto;flex-shrink:0}
+.daily-hero{padding:25px 28px;margin-bottom:28px;border:1px solid #40564d;border-radius:12px;background:radial-gradient(ellipse at top right,#43523a66,transparent 65%),linear-gradient(120deg,#243431,#222a2e)}
+.daily-hero-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}.daily-hero .pill{color:var(--mint)}.daily-hero .eyebrow{color:#a8bbad}
+.daily-hero h2{font-size:23px;font-weight:500;margin:20px 0 8px}.daily-hero p{font-size:11px;color:#a4b2ae;margin:0 0 25px}
+.daily-progress-label{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:#a6bcb1;margin-bottom:10px}.daily-progress-label b{color:#c4e4d1;font-weight:500;margin-left:5px}
+.daily-hero .track{height:6px;background:#152722}.daily-hero .track span{background:linear-gradient(90deg,#77bfa2,#c4d68f)}
+.tag.daily{color:var(--mint);background:#2d403b}.daily-card .quest-check{border-color:#638c77}.daily-complete .quest-check{background:#79b89c;border-color:#79b89c;color:#172e24}
+.daily-complete{background:#202a29;border-color:#3c5148}.daily-complete .quest-title{color:#b5c6bf}
+.daily-notes{font-size:11px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0 0;line-height:1.8}
+.daily-record{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:18px 0 0 36px;padding-top:15px;border-top:1px solid #383b40}
+.daily-streak{font-size:10px;color:#9bb3a5}.daily-streak b{font-size:18px;color:#c7dfad;font-weight:500;margin-right:3px}.daily-streak>span{display:block;font-size:9px;color:var(--muted);margin-top:3px}
+.daily-week{display:flex;gap:6px}.daily-day{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:25px}.daily-day small{font-size:8px;color:var(--muted)}
+.daily-day i{display:grid;place-items:center;width:25px;height:24px;background:#1a2026;border:1px solid #353b40;border-radius:6px;font-size:11px;font-style:normal;color:#68766c}
+.daily-day.checked i{background:#344e40;color:#c5e0ae;border-color:#52755f}.daily-day.today small{color:#c5dfb0}.daily-day.today i{border-color:#8caf73}
+.daily-suggestions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}.daily-empty>svg{color:var(--mint)}
+@media(max-width:720px){
+  .sidebar nav{grid-template-columns:repeat(6,minmax(0,1fr))}.nav-item{font-size:9px}.daily-overview{padding:14px;gap:10px}.daily-overview-icon{display:none}.daily-overview p{font-size:9px}.daily-overview>.button{font-size:9px;padding:7px 9px}
+  .daily-hero{padding:21px 18px}.daily-hero h2{font-size:20px}.daily-hero .eyebrow{font-size:8px;letter-spacing:1px}.daily-hero p{font-size:9px}.daily-progress-label{font-size:10px}
+  .daily-record{margin-left:0;gap:8px}.daily-week{gap:4px}.daily-day{min-width:23px}.daily-day i{width:23px;height:24px}.daily-streak{font-size:9px}.daily-streak b{font-size:16px}.daily-notes{font-size:10px}
+}
+@media(max-width:360px){.daily-week{gap:3px}.daily-day{min-width:21px}.daily-day i{width:21px}.daily-record{gap:5px}.daily-overview h3{font-size:12px}.nav-item{font-size:8px}}

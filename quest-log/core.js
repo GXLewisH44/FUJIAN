@@ -1,3 +1,4 @@
+import {DAILY_XP,validDay} from './daily.js?v=3';
 export const SCHEMA = 1;
 export const KEY = 'questlog.save.v1';
 export const names = {active:'进行中', planned:'尚未开始', waiting:'等待中', done:'已完成'};
@@ -15,11 +16,11 @@ export function deadline(t, now=Date.now()) {
   if(diff<86400000) return {label:`剩余 ${Math.ceil(diff/3600000)} 小时`,tone:'gold',days};
   return {label:`剩余 ${days} 天`,tone:days<=3?'gold':'muted',days};
 }
-export function stats(tasks) {
-  const done=tasks.filter(t=>t.status==='done'); const exp=done.reduce((s,t)=>s+xp(t),0);
+export function stats(tasks,dailies=[]) {
+  const done=tasks.filter(t=>t.status==='done'); const exp=done.reduce((s,t)=>s+xp(t),0)+dailies.reduce((n,t)=>n+t.completions.length*DAILY_XP,0);
   return {done:done.length,exp,level:Math.floor(exp/500)+1,levelXp:exp%500,active:tasks.filter(t=>t.status!=='done').length,main:tasks.filter(t=>t.type==='main'&&t.status!=='done').length,side:tasks.filter(t=>t.type==='side'&&t.status!=='done').length,soon:tasks.filter(t=>t.status!=='done'&&deadline(t).days<=3).length};
 }
-export function fresh(demo=false) { return {schema:SCHEMA,revision:id(),updatedAt:new Date().toISOString(),demo,tasks:[]}; }
+export function fresh(demo=false) { return {schema:SCHEMA,revision:id(),updatedAt:new Date().toISOString(),demo,tasks:[],dailies:[]}; }
 export function demoSave() {
   const save=fresh(true); const due=(n,h=18)=>{const d=new Date();d.setDate(d.getDate()+n);d.setHours(h,0,0,0);return dateInput(d);};
   const make=(title,type,area,days,steps,done=0,extra={})=>({id:id(),title,type,area,due:due(days),priority:'normal',status:'active',difficulty:1,notes:'',reward:'',parent:'',pinned:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),completedAt:null,steps:steps.map((title,i)=>({id:id(),title,done:i<done})),...extra});
@@ -38,6 +39,13 @@ export function validateSave(raw) {
     return {id:t.id,title:t.title.trim(),type:t.type,status:t.status,due:t.due||'',difficulty:t.difficulty,area:str(t.area,20)||'生活',notes:str(t.notes,5000),reward:str(t.reward,150),parent:str(t.parent,100),priority:['high','normal','low'].includes(t.priority)?t.priority:'normal',pinned:Boolean(t.pinned),createdAt:time(t.createdAt),updatedAt:time(t.updatedAt),completedAt:t.status==='done'?time(t.completedAt):null,steps:t.steps.map(s=>{if(!s||typeof s.title!=='string'||s.title.length>500||!s.title.trim())throw new Error('任务步骤无效。'); const sid=typeof s.id==='string'&&s.id.length<100&&!stepIds.has(s.id)?s.id:id();stepIds.add(sid);return {id:sid,title:s.title,done:Boolean(s.done)};})};
   });
   const mainIds=new Set(clean.tasks.filter(t=>t.type==='main').map(t=>t.id));
+  if(raw.dailies!==undefined&&(!Array.isArray(raw.dailies)||raw.dailies.length>200))throw new Error('每日任务格式无效，最多支持 200 项。');
+  clean.dailies=(raw.dailies||[]).map(t=>{
+    if(!t||typeof t.id!=='string'||!t.id||t.id.length>100||ids.has(t.id)||typeof t.title!=='string'||!t.title.trim()||t.title.length>120||!Array.isArray(t.completions)||t.completions.length>20000||t.completions.some(d=>!validDay(d)))throw new Error('每日任务或打卡记录无效。');
+    ids.add(t.id);
+    const time=v=>typeof v==='string'&&Number.isFinite(Date.parse(v))?v:new Date().toISOString();
+    return {id:t.id,title:t.title.trim(),area:typeof t.area==='string'?t.area.slice(0,20):'生活',notes:typeof t.notes==='string'?t.notes.slice(0,5000):'',createdAt:time(t.createdAt),updatedAt:time(t.updatedAt),completions:[...new Set(t.completions)].sort()};
+  });
   clean.tasks.forEach(t=>{if(t.type==='main'||!mainIds.has(t.parent))t.parent='';});
   if(clean.tasks.filter(t=>t.pinned&&t.status!=='done').length>3){let n=0;clean.tasks.forEach(t=>{if(t.pinned&&t.status!=='done'&&++n>3)t.pinned=false;});}
   return clean;

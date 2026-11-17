@@ -1,1 +1,1 @@
-{"type":"module","private":true,"scripts":{"test":"node --test test-core.mjs"}}
+{"type":"module","private":true,"scripts":{"test":"node --test test-core.mjs test-daily.mjs test-sync.mjs test-auth.mjs"}}

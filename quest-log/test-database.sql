@@ -22,6 +22,15 @@ do $$ declare r jsonb; begin
   r:=public.questlog_write(1,'{"schema":1,"demo":false,"tasks":[]}');
   if r->>'conflict' is distinct from 'true' then raise exception 'FAIL: stale version overwrote'; end if;
   if (select count(*) from public.questlog_saves)<>1 then raise exception 'FAIL: own row not visible'; end if;
+  r:=public.questlog_write(2,'{"schema":1,"demo":false,"tasks":[],"dailies":[{"id":"daily-guard","title":"read","completions":["2026-11-18"]}]}');
+  if r->>'version' is distinct from '3' then raise exception 'FAIL: daily save'; end if;
+  begin
+    perform public.questlog_write(3,'{"schema":1,"demo":false,"tasks":[]}');
+    raise exception 'FAIL: old client erased daily history';
+  exception when raise_exception then
+    if SQLERRM <> '网站已更新，请刷新页面后再同步，以保留每日任务' then raise; end if;
+  end;
+  if (select payload->'dailies'->0->'completions'->>0 from public.questlog_saves) is distinct from '2026-11-18' then raise exception 'FAIL: daily history lost'; end if;
   begin delete from public.questlog_saves; raise exception 'FAIL: delete allowed'; exception when insufficient_privilege then null; end;
 end $$;
 select set_config('request.jwt.claim.sub',b::text,true) from questlog_test_actors;
@@ -49,5 +58,5 @@ do $$ begin
 end $$;
 reset role;
 rollback;
-select 'PASS: anonymous denial, account isolation, owner checks, create/update, version conflicts; all fixtures rolled back' as result;
+select 'PASS: anonymous denial, account isolation, owner checks, version conflicts, daily persistence and old-client protection; all fixtures rolled back' as result;
 
