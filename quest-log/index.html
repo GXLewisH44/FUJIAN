@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#171923"><meta name="description" content="把生活变成一场值得投入的冒险。记录主线、支线与截止时间，积累属于自己的进度。">
   <title>人生任务局 · Questlog</title>
-  <link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=4">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=5">
   <link rel="stylesheet" href="./daily.css?v=3">
 </head>
 <body>
@@ -35,19 +35,19 @@
         <button class="nav-item" data-view="archive"><svg><use href="#i-cup"/></svg><span>成就与归档</span></button>
       </nav>
       <div class="side-bottom">
-        <div class="side-note"><span>✦</span><p>每一点进度，<br>都算数。</p><small>YOUR PACE. YOUR ADVENTURE.</small></div>
+        <div class="side-note"><span>✦</span><p id="side-daily-copy">每一点进度，都算数。</p><small>YOUR PACE. YOUR ADVENTURE.</small></div>
         <button class="nav-item" id="storage-btn"><svg><use href="#i-cloud"/></svg><span>存档与同步</span><span class="local-dot"></span></button>
         <div class="profile"><div class="avatar">旅</div><div><b>自由冒险者</b><small id="side-level">Lv. 1 · 初来乍到</small></div><span class="profile-star">✧</span></div>
       </div>
     </aside>
     <main>
-      <header class="topbar"><div class="breadcrumb">我的冒险 <span>/</span> <b id="page-crumb">任务总览</b></div><div class="top-actions"><span id="save-state" role="status">● 此设备已保存</span><button class="button primary small" id="top-new" data-new="side"><svg><use href="#i-plus"/></svg>新建任务</button></div></header>
+      <header class="topbar"><div class="breadcrumb">稳步前进 <span>/</span> <b id="page-crumb">任务总览</b></div><div class="top-actions"><span id="save-state" role="status">● 此设备已保存</span><button class="button primary small" id="top-new" data-new="side"><svg><use href="#i-plus"/></svg>新建任务</button></div></header>
       <div class="page">
         <div class="heading"><div><div class="eyebrow" id="today-label"></div><h1 id="page-title">冒险还在继续<span class="heading-star">✦</span></h1><p id="page-description">把重要的事放在主线，把想尝试的事留给支线。</p></div><div class="chapter-tag">CHAPTER <b>01</b><span>属于你的新篇章</span></div></div>
         <div id="demo-banner" class="demo-banner"><span>✧ 你正在浏览示例存档，可以先点点看。</span><button id="start-own">建立我的存档 <span>→</span></button></div>
         <div class="stats" id="stats"></div>
         <div class="workspace"><section class="quest-area"><div id="hero"></div><div id="view-content"></div></section><aside class="right-rail" id="right-rail"></aside></div>
-        <footer><span>QUESTLOG <span class="footer-star">✦</span> 把日子过成自己的故事</span><span>不必一口气通关，今天推进一点就好。</span></footer>
+        <footer><span>QUESTLOG <span class="footer-star">✦</span> 把日子过成自己的故事</span><span id="footer-daily-copy">今天推进一点，就很好。</span></footer>
       </div>
     </main>
   </div>
@@ -72,5 +72,5 @@
   <dialog id="storage-dialog" aria-labelledby="storage-title"><div class="dialog-head"><div><span class="eyebrow">SAVE YOUR ADVENTURE</span><h2 id="storage-title">存档与同步</h2></div><button class="icon-button" data-close aria-label="关闭">×</button></div><div class="storage-body"><div id="cloud-panel"></div><div class="storage-section"><h3>随身携带你的进度</h3><p>导出存档后，可以在另一台设备导入。导入会替换此设备上的存档，建议先备份。</p><div class="button-row"><button class="button" id="export-btn">↓ 导出存档 JSON</button><button class="button" id="import-btn">↑ 导入存档</button></div><input type="file" id="import-file" accept=".json,application/json" hidden></div><div class="storage-section"><h3>把 DDL 放进日历</h3><p>导出未完成任务的截止时间，可导入手机或电脑日历。文件包含提前一天的提醒，实际通知取决于日历设置。</p><button class="button" id="calendar-btn">↓ 导出日历 ICS</button></div><div class="storage-note">此设备的数据保存在当前浏览器。清理浏览器数据或使用无痕模式可能丢失存档，请定期导出。</div></div></dialog>
   <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-head"><h2 id="confirm-title"></h2></div><p id="confirm-text"></p><div class="dialog-foot"><button class="button" id="confirm-cancel">取消</button><button class="button primary" id="confirm-ok">确认</button></div></dialog>
   <div id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=3"></script>
+  <script type="module" src="./app.js?v=4"></script>
 </body></html>
